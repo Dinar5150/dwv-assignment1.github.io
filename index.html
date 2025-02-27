@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dark Films Showcase</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Title Screen -->
+  <header class="title-screen">
+    <h1>Dark Films Showcase</h1>
+    <p>List of highest-grossing films</p>
+  </header>
+
+  <!-- Carousel Section -->
+  <section class="carousel-section">
+    <div class="carousel-container">
+      <button class="carousel-btn prev" aria-label="Previous">
+        <!-- Left arrow SVG -->
+        <svg width="40" height="40" viewBox="0 0 24 24">
+          <path fill="#ffffff" d="M15.41,7.41L14,6l-6,6l6,6l1.41-1.41L10.83,12Z" />
+        </svg>
+      </button>
+      <div class="carousel-track-container">
+        <ul class="carousel-track">
+          <!-- Carousel items inserted by JavaScript -->
+        </ul>
+      </div>
+      <button class="carousel-btn next" aria-label="Next">
+        <!-- Right arrow SVG -->
+        <svg width="40" height="40" viewBox="0 0 24 24">
+          <path fill="#ffffff" d="M8.59,16.59L13.17,12L8.59,7.41L10,6l6,6l-6,6Z" />
+        </svg>
+      </button>
+    </div>
+  </section>
+
+  <!-- Scroll Down Hint -->
+<div class="scroll-hint">
+  <svg width="40" height="40" viewBox="0 0 24 24" aria-hidden="true">
+    <path fill="#ffffff" d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
+    <animate attributeName="opacity" values="0;1;0" dur="2s" repeatCount="indefinite" />
+  </svg>
+</div>
+
+  <!-- Table Section -->
+  <section class="table-section">
+    <h2>All Movies</h2>
+    <input type="text" id="table-search" placeholder="Search movies..." />
+    <table>
+      <thead>
+        <tr>
+          <th data-column="rank">Rank <span class="sort-indicator"></span></th>
+          <th data-column="title">Title <span class="sort-indicator"></span></th>
+          <th data-column="release_year">Release Year <span class="sort-indicator"></span></th>
+          <th data-column="director">Director(s) <span class="sort-indicator"></span></th>
+          <th data-column="box_office">Box Office <span class="sort-indicator"></span></th>
+          <th data-column="country">Country <span class="sort-indicator"></span></th>
+          <th data-column="img_url">Image <span class="sort-indicator"></span></th>
+        </tr>
+      </thead>
+      <tbody id="films-table-body">
+        <!-- Table rows inserted by JavaScript -->
+      </tbody>
+    </table>
+  </section>
+
+  <script>
+    // Global sort state: true = ascending, false = descending.
+    const sortState = {
+      rank: true,
+      title: true,
+      release_year: true,
+      director: true,
+      box_office: true,
+      country: true,
+      img_url: true
+    };
+
+    let filmsDataGlobal = []; // Global variable for films
+
+    // Fetch films data from the JSON file.
+    async function fetchFilmsData() {
+      try {
+        const response = await fetch('films_data.json');
+        return await response.json();
+      } catch (error) {
+        console.error("Error fetching films data:", error);
+        return [];
+      }
+    }
+
+    // Populate carousel with movie cards.
+    function populateCarousel(films) {
+      const track = document.querySelector('.carousel-track');
+      films.forEach(film => {
+        const li = document.createElement('li');
+        li.classList.add('carousel-item');
+        li.innerHTML = `
+          <div class="card">
+            <div class="card-image" style="background-image: url('${film.img_url}');">
+              <div class="card-overlay">
+                <h3 class="card-title">${film.title}</h3>
+                <p class="card-rank">Rank: ${film.rank}</p>
+              </div>
+            </div>
+          </div>
+        `;
+        track.appendChild(li);
+      });
+    }
+
+    // Setup infinite carousel with seamless looping.
+    function setupInfiniteCarousel() {
+      const track = document.querySelector('.carousel-track');
+      const originalItems = Array.from(track.children);
+      const originalCount = originalItems.length;
+      
+      // Clone items at the end.
+      originalItems.forEach(item => {
+        const clone = item.cloneNode(true);
+        clone.classList.add('clone');
+        track.appendChild(clone);
+      });
+      // Clone items at the beginning.
+      for (let i = originalItems.length - 1; i >= 0; i--) {
+        const clone = originalItems[i].cloneNode(true);
+        clone.classList.add('clone');
+        track.insertBefore(clone, track.firstChild);
+      }
+      
+      const items = Array.from(track.children);
+      let currentIndex = originalCount; // Start at first original item.
+      
+      function updateCarousel(transition = true) {
+        const itemWidth = items[0].getBoundingClientRect().width;
+        track.style.transition = transition ? 'transform 0.3s ease-in-out' : 'none';
+        track.style.transform = `translateX(${-currentIndex * (itemWidth + 20)}px)`;
+      }
+      updateCarousel(false);
+      
+      const prevButton = document.querySelector('.carousel-btn.prev');
+      const nextButton = document.querySelector('.carousel-btn.next');
+      
+      nextButton.addEventListener('click', () => {
+        currentIndex++;
+        updateCarousel();
+        track.addEventListener('transitionend', function handler() {
+          if (currentIndex >= originalCount * 2) {
+            currentIndex = originalCount;
+            updateCarousel(false);
+          }
+          track.removeEventListener('transitionend', handler);
+        });
+      });
+      
+      prevButton.addEventListener('click', () => {
+        currentIndex--;
+        updateCarousel();
+        track.addEventListener('transitionend', function handler() {
+          if (currentIndex < originalCount) {
+            currentIndex = originalCount * 2 - 1;
+            updateCarousel(false);
+          }
+          track.removeEventListener('transitionend', handler);
+        });
+      });
+    }
+
+    // Populate table with films data.
+    function populateTable(films) {
+      const tableBody = document.getElementById("films-table-body");
+      tableBody.innerHTML = '';
+      films.forEach(film => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${film.rank}</td>
+          <td>${film.title}</td>
+          <td>${film.release_year}</td>
+          <td>${Array.isArray(film.director) ? film.director.join(", ") : film.director}</td>
+          <td>${film.box_office}</td>
+          <td>${Array.isArray(film.country) ? film.country.join(", ") : film.country}</td>
+          <td><img src="${film.img_url}" alt="${film.title}" class="table-img"></td>
+        `;
+        tableBody.appendChild(row);
+      });
+    }
+
+    // Sort films array by a given column.
+    function sortFilms(films, column, isNumeric) {
+      const sorted = films.sort((a, b) => {
+        let valA = a[column], valB = b[column];
+        if (!isNumeric) {
+          if (Array.isArray(valA)) valA = valA.join(", ");
+          if (Array.isArray(valB)) valB = valB.join(", ");
+          return sortState[column] ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        } else {
+          return sortState[column] ? Number(valA) - Number(valB) : Number(valB) - Number(valA);
+        }
+      });
+      sortState[column] = !sortState[column];
+      return sorted;
+    }
+
+    // Determine if the column is numeric.
+    function isNumericColumn(column) {
+      return ["rank", "release_year"].includes(column);
+    }
+
+    // Update sort indicator for the current sorted column.
+    function updateSortIndicators(sortedColumn, ascending) {
+      document.querySelectorAll("th[data-column] .sort-indicator").forEach(indicator => {
+        indicator.textContent = "";
+      });
+      const headerIndicator = document.querySelector(`th[data-column="${sortedColumn}"] .sort-indicator`);
+      if (headerIndicator) {
+        headerIndicator.textContent = ascending ? "▲" : "▼";
+      }
+    }
+
+    // Add sort listeners to table headers.
+    function addSortListeners(films) {
+      document.querySelectorAll("th[data-column]").forEach(header => {
+        header.addEventListener("click", () => {
+          const column = header.getAttribute("data-column");
+          const numeric = isNumericColumn(column);
+          const sortedFilms = sortFilms([...films], column, numeric);
+          updateSortIndicators(column, !sortState[column]);
+          populateTable(sortedFilms);
+        });
+      });
+    }
+
+    // Setup search bar functionality.
+    function setupSearch(films) {
+      const searchInput = document.getElementById("table-search");
+      searchInput.addEventListener("input", () => {
+        const query = searchInput.value.toLowerCase();
+        const filteredFilms = films.filter(film => {
+          return film.title.toLowerCase().includes(query) ||
+                 (Array.isArray(film.director) && film.director.some(d => d.toLowerCase().includes(query))) ||
+                 (Array.isArray(film.country) && film.country.some(c => c.toLowerCase().includes(query))) ||
+                 film.box_office.toLowerCase().includes(query) ||
+                 film.release_year.toString().includes(query) ||
+                 film.rank.toString().includes(query);
+        });
+        populateTable(filteredFilms);
+      });
+    }
+
+    // Initialize components once the DOM is loaded.
+    document.addEventListener("DOMContentLoaded", async () => {
+      const films = await fetchFilmsData();
+      filmsDataGlobal = films;
+      populateCarousel(films);
+      setupInfiniteCarousel();
+      populateTable(films);
+      addSortListeners(films);
+      setupSearch(films);
+    });
+  </script>
+</body>
+</html>
